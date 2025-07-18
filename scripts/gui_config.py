@@ -1,12 +1,23 @@
 """
 PyQt5 GUI for configuration and global mouse tracking for Click & Yes Cursor.
+Uses QThread for mouse polling to avoid QSocketNotifier error.
 """
 import sys
 import json
 import os
 import pyautogui
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal
+
+
+class MouseWorker(QThread):
+    positionChanged = pyqtSignal(int, int)
+
+    def run(self):
+        while True:
+            pos = pyautogui.position()
+            self.positionChanged.emit(pos.x, pos.y)
+            self.msleep(100)
 
 
 class ConfigWindow(QWidget):
@@ -37,18 +48,19 @@ class ConfigWindow(QWidget):
         layout.addWidget(self.save_btn)
         self.setLayout(layout)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_mouse_position)
-        self.timer.start(100)
+        self.mouse_worker = MouseWorker()
+        self.mouse_worker.positionChanged.connect(self.update_mouse_position)
+        self.mouse_worker.start()
+        self._last_pos = (0, 0)
 
-    def update_mouse_position(self):
-        pos = pyautogui.position()
-        self.mouse_label.setText(f'Global Mouse Position: ({pos.x}, {pos.y})')
+    def update_mouse_position(self, x, y):
+        self.mouse_label.setText(f'Global Mouse Position: ({x}, {y})')
+        self._last_pos = (x, y)
 
     def set_xy_to_mouse(self):
-        pos = pyautogui.position()
-        self.x_entry.setText(str(pos.x))
-        self.y_entry.setText(str(pos.y))
+        x, y = self._last_pos
+        self.x_entry.setText(str(x))
+        self.y_entry.setText(str(y))
 
     def save_config(self):
         config = {
