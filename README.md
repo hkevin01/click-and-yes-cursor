@@ -50,3 +50,55 @@ See `CONTRIBUTING.md` for details on how to contribute.
 
 ## License
 MIT
+
+## Running Without a Virtual Environment
+
+You can run the automation without a Python virtual environment by installing the required dependencies system-wide (or for your user):
+
+1. Install dependencies:
+   ```bash
+   pip3 install --user pyautogui pyperclip PyQt5
+   # Or, to install all requirements:
+   pip3 install --user -r requirements.txt
+   ```
+
+2. Run the automation script:
+   ```bash
+   ./run.sh
+   # or
+   bash run.sh
+   ```
+
+3. (Optional) To configure via GUI, run:
+   ```bash
+   ./gui_superuser.sh
+   ```
+
+**Note:**
+- You do not need to activate a virtual environment.
+- If you want to revert to using a virtual environment, recreate it with `python3 -m venv venv` and install requirements there.
+
+## Cross-Platform Setup & Troubleshooting
+
+### Linux
+- Requires `scrot` and `python3-tk` for full pyautogui support:
+  ```bash
+  sudo apt-get install scrot python3-tk
+  ```
+- If clipboard or GUI features fail, check for missing dependencies above.
+
+### Windows
+- Ensure you install dependencies with:
+  ```bash
+  pip install --user pyautogui pyperclip
+  ```
+- No extra requirements, but you may need to run as administrator for some automation features.
+
+### macOS
+- Install dependencies with:
+  ```bash
+  pip3 install --user pyautogui pyperclip
+  ```
+- You may need to grant accessibility permissions to Terminal or Python in System Preferences > Security & Privacy > Accessibility.
+
+If you see an error about missing dependencies, follow the printed instructions or see this section.

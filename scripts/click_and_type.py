@@ -5,6 +5,8 @@ import datetime
 import json
 import logging
 import os
+import platform
+import random
 import time
 from logging.handlers import RotatingFileHandler
 
@@ -19,15 +21,40 @@ def get_config():
             config = json.load(f)
             coords = config.get('coordinates', {'x': 100, 'y': 200})
             messages = config.get('message', ["yes, continue"])
-            return coords, messages
+            cycling = config.get('cycling', 'round_robin')  # 'round_robin', 'random', or 'weighted'
+            return coords, messages, cycling
     except Exception as e:
         print(f"Error reading config: {e}")
-        return {'x': 100, 'y': 200}, ["yes, continue"]
+        return {'x': 100, 'y': 200}, ["yes, continue"], 'round_robin'
 
 
-def get_next_message(messages):
-    """Cycles through messages, storing index in logs/message_index.txt."""
+def get_next_message(messages, cycling):
+    """Cycles or randomly selects messages, supports weights if present."""
     idx_file = os.path.join(os.path.dirname(__file__), '../logs/message_index.txt')
+    # If messages are dicts with 'text', support weighted/random cycling
+    if isinstance(messages[0], dict):
+        if cycling == 'random':
+            return random.choice(messages)['text']
+        elif cycling == 'weighted':
+            weights = [m.get('weight', 1) for m in messages]
+            return random.choices(messages, weights=weights, k=1)[0]['text']
+        # Default: round robin
+        try:
+            if os.path.exists(idx_file):
+                with open(idx_file, 'r') as f:
+                    idx = int(f.read().strip())
+            else:
+                idx = 0
+        except Exception:
+            idx = 0
+        message = messages[idx % len(messages)]['text']
+        try:
+            with open(idx_file, 'w') as f:
+                f.write(str((idx + 1) % len(messages)))
+        except Exception as e:
+            print(f"Error writing message index: {e}")
+        return message
+    # If messages are strings, fallback to round robin
     try:
         if os.path.exists(idx_file):
             with open(idx_file, 'r') as f:
@@ -37,7 +64,6 @@ def get_next_message(messages):
     except Exception:
         idx = 0
     message = messages[idx % len(messages)]
-    # Update index for next run
     try:
         with open(idx_file, 'w') as f:
             f.write(str((idx + 1) % len(messages)))
@@ -65,7 +91,42 @@ def click_and_paste(x, y, message):
         logging.error(f"Automation error: {err}")
 
 
+def check_platform_dependencies():
+    os_name = platform.system()
+    missing = []
+    if os_name == 'Linux':
+        # pyautogui on Linux may require scrot and python3-tk
+        import shutil
+        if shutil.which('scrot') is None:
+            missing.append('scrot (install with: sudo apt-get install scrot)')
+        try:
+            import tkinter
+        except ImportError:
+            missing.append('python3-tk (install with: sudo apt-get install python3-tk)')
+    if os_name == 'Windows':
+        # No extra requirements, but check pyautogui/pyperclip
+        try:
+            import pyautogui
+            import pyperclip
+        except ImportError:
+            missing.append('pyautogui and pyperclip (install with: pip install pyautogui pyperclip)')
+    if os_name == 'Darwin':
+        # macOS: pyautogui/pyperclip should work, but may need permissions
+        try:
+            import pyautogui
+            import pyperclip
+        except ImportError:
+            missing.append('pyautogui and pyperclip (install with: pip3 install pyautogui pyperclip)')
+    if missing:
+        print("[ERROR] Missing dependencies for platform {}: ".format(os_name))
+        for m in missing:
+            print("  - " + m)
+        print("Please install the missing dependencies and try again.")
+        exit(1)
+
+
 if __name__ == "__main__":
+    check_platform_dependencies()
     # Set up logging
     log_path = os.path.join(
         os.path.dirname(__file__), '../logs/click_and_type.log'
@@ -79,6 +140,6 @@ if __name__ == "__main__":
         handlers=[handler]
     )
 
-    coords, messages = get_config()
-    message = get_next_message(messages)
+    coords, messages, cycling = get_config()
+    message = get_next_message(messages, cycling)
     click_and_paste(coords['x'], coords['y'], message)
