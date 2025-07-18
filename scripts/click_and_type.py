@@ -125,6 +125,28 @@ def check_platform_dependencies():
         exit(1)
 
 
+def run_plugins(message, coords):
+    import glob
+    import importlib.util
+    import sys
+    plugins_dir = os.path.join(os.path.dirname(__file__), '../plugins')
+    if not os.path.isdir(plugins_dir):
+        return
+    for plugin_path in glob.glob(os.path.join(plugins_dir, '*.py')):
+        plugin_name = os.path.splitext(os.path.basename(plugin_path))[0]
+        spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
+        if spec is None:
+            continue
+        plugin = importlib.util.module_from_spec(spec)
+        try:
+            sys.modules[plugin_name] = plugin
+            spec.loader.exec_module(plugin)
+            if hasattr(plugin, 'run'):
+                plugin.run(message=message, coords=coords)
+        except Exception as e:
+            print(f"[PLUGIN ERROR] {plugin_name}: {e}")
+
+
 if __name__ == "__main__":
     check_platform_dependencies()
     # Set up logging
@@ -142,4 +164,5 @@ if __name__ == "__main__":
 
     coords, messages, cycling = get_config()
     message = get_next_message(messages, cycling)
+    run_plugins(message, coords)
     click_and_paste(coords['x'], coords['y'], message)

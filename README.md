@@ -102,3 +102,45 @@ You can run the automation without a Python virtual environment by installing th
 - You may need to grant accessibility permissions to Terminal or Python in System Preferences > Security & Privacy > Accessibility.
 
 If you see an error about missing dependencies, follow the printed instructions or see this section.
+
+## Plugin/Extension Support
+
+You can extend the automation by adding plugins to the `plugins/` directory. Each plugin should be a Python file with a `run()` function. Plugins can be used to perform custom actions before or after the main automation action.
+
+### How to Add a Plugin
+1. Create a Python file in the `plugins/` directory (e.g., `plugins/my_plugin.py`).
+2. Define a `run()` function. It can accept optional arguments (e.g., the current message, coordinates, etc.).
+3. The automation will call all plugins in the `plugins/` directory before each automation run.
+
+**Example plugin:**
+```python
+# plugins/print_message.py
+def run(message=None, coords=None):
+    print(f"[PLUGIN] Message: {message}, Coords: {coords}")
+```
+
+### How Plugins Are Called
+- All plugins in the `plugins/` directory are imported and their `run()` function is called before each automation run.
+- Plugins can be used for logging, notifications, custom integrations, etc.
+
+## Web/REST API for Control
+
+You can control and monitor the automation via a simple REST API using FastAPI.
+
+### Running the API Server
+1. Install FastAPI and Uvicorn:
+   ```bash
+   pip3 install --user fastapi uvicorn
+   ```
+2. Start the server:
+   ```bash
+   uvicorn api_server:app --reload
+   ```
+
+### API Endpoints
+- `GET /status` — Get current config and last 10 log lines
+- `GET /config` — Get the current config
+- `POST /config` — Update the config (send JSON body)
+- `GET /log` — View the full run log
+
+You can use `curl`, Postman, or your browser to interact with these endpoints.
