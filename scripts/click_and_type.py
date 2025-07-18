@@ -13,16 +13,37 @@ import pyperclip
 
 
 def get_config():
-    """Reads coordinates and message from config file."""
+    """Reads coordinates and message(s) from config file."""
     try:
         with open(os.path.join(os.path.dirname(__file__), '../src/config.json'), encoding='utf-8') as f:
             config = json.load(f)
             coords = config.get('coordinates', {'x': 100, 'y': 200})
-            message = config.get('message', 'yes, continue')
-            return coords, message
+            messages = config.get('message', ["yes, continue"])
+            return coords, messages
     except Exception as e:
         print(f"Error reading config: {e}")
-        return {'x': 100, 'y': 200}, 'yes, continue'
+        return {'x': 100, 'y': 200}, ["yes, continue"]
+
+
+def get_next_message(messages):
+    """Cycles through messages, storing index in logs/message_index.txt."""
+    idx_file = os.path.join(os.path.dirname(__file__), '../logs/message_index.txt')
+    try:
+        if os.path.exists(idx_file):
+            with open(idx_file, 'r') as f:
+                idx = int(f.read().strip())
+        else:
+            idx = 0
+    except Exception:
+        idx = 0
+    message = messages[idx % len(messages)]
+    # Update index for next run
+    try:
+        with open(idx_file, 'w') as f:
+            f.write(str((idx + 1) % len(messages)))
+    except Exception as e:
+        print(f"Error writing message index: {e}")
+    return message
 
 
 def click_and_paste(x, y, message):
@@ -58,5 +79,6 @@ if __name__ == "__main__":
         handlers=[handler]
     )
 
-    coords, message = get_config()
+    coords, messages = get_config()
+    message = get_next_message(messages)
     click_and_paste(coords['x'], coords['y'], message)
