@@ -1,6 +1,7 @@
 """
 Script to automate clicking coordinates and copying message from config.json to clipboard.
 """
+import datetime
 import json
 import logging
 import os
@@ -27,13 +28,15 @@ def get_config():
 def click_and_paste(x, y, message):
     """Clicks at the given coordinates and pastes the message from clipboard."""
     try:
+        now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+        full_message = f"{now} {message}"
         print(f"[AUTOMATION] Moving mouse and clicking at ({x}, {y})")
         logging.info(
             f"Moving mouse and clicking at ({x}, {y})"
         )
         pyautogui.click(x, y)
         time.sleep(0.5)
-        pyperclip.copy(message)
+        pyperclip.copy(full_message)
         pyautogui.hotkey('ctrl', 'v')
         pyautogui.press('enter')
     except Exception as err:
