@@ -1,0 +1,14 @@
+{
+  "name": "click-and-yes-cursor",
+  "version": "0.1.0",
+  "description": "Automates clicking coordinates and typing 'yes, continue' in a chat window.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"No tests yet\""
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

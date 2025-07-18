@@ -1,0 +1,13 @@
+{
+  "behavior": {
+    "enableSuggestions": true,
+    "enableCompletions": true,
+    "preferredLanguages": ["javascript", "python"]
+  },
+  "customPrompts": [
+    {
+      "name": "Click and Type Automation",
+      "prompt": "Automate clicking coordinates and typing 'yes, continue' in a chat window."
+    }
+  ]
+}
