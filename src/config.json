@@ -14,6 +14,7 @@
     {"text": "update project plan.md"},
     {"text": "update test plan.md"},
     {"text": "run full test suite"},
-    {"text": "yes, continue", "weight": 5}
+    {"text": "yes, continue", "weight": 5},
+    {"text": "examine the code, and project and examine github for similar projects make suggestions for improvements update project plan.md with suggestions and new phases"}
   ]
 }
