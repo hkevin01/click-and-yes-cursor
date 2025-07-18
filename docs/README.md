@@ -19,3 +19,11 @@ This folder contains detailed documentation for the Click and Yes Cursor project
 ## Community & Support
 - For questions, feedback, or feature requests, open an issue or join discussions in the repository.
 - See CONTRIBUTING.md for how to get involved.
+
+## Release Notes
+- Advanced automation and GUI configuration added in latest release.
+- See CHANGELOG.md for details.
+
+## Maintenance & Feedback
+- For issues, feature requests, or feedback, use GitHub Issues or Discussions.
+- Project will be monitored and updated regularly for security and improvements.
