@@ -1,10 +1,13 @@
 """
 Script to automate clicking coordinates and copying message from config.json to clipboard.
 """
-import pyautogui
-import time
 import json
+import logging
 import os
+import time
+from logging.handlers import RotatingFileHandler
+
+import pyautogui
 import pyperclip
 
 
@@ -24,6 +27,10 @@ def get_config():
 def click_and_paste(x, y, message):
     """Clicks at the given coordinates and pastes the message from clipboard."""
     try:
+        print(f"[AUTOMATION] Moving mouse and clicking at ({x}, {y})")
+        logging.info(
+            f"Moving mouse and clicking at ({x}, {y})"
+        )
         pyautogui.click(x, y)
         time.sleep(0.5)
         pyperclip.copy(message)
@@ -31,8 +38,22 @@ def click_and_paste(x, y, message):
         pyautogui.press('enter')
     except Exception as err:
         print(f"Automation error: {err}")
+        logging.error(f"Automation error: {err}")
 
 
 if __name__ == "__main__":
+    # Set up logging
+    log_path = os.path.join(
+        os.path.dirname(__file__), '../logs/click_and_type.log'
+    )
+    handler = RotatingFileHandler(
+        log_path, maxBytes=1000000, backupCount=3
+    )
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[handler]
+    )
+
     coords, message = get_config()
     click_and_paste(coords['x'], coords['y'], message)

@@ -22,3 +22,6 @@ Automate UI interactions for chat windows or similar interfaces, specifically cl
 - QA engineers
 - Chatbot integrators
 - Open-source contributors
+
+## Logging
+- All changes to the project and test outputs should be logged in the `logs` folder for traceability and debugging.

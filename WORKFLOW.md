@@ -20,3 +20,8 @@
 ## Release Process
 - Update `CHANGELOG.md` for each release.
 - Tag releases in GitHub.
+
+## Logging Workflow
+- All changes to the project, including code changes, configuration updates, and test outputs, should be logged in the `logs` folder.
+- Each log entry should include a timestamp, a brief description of the change or test, and any relevant output or results.
+- This practice ensures traceability, easier debugging, and a clear audit trail for project evolution.
