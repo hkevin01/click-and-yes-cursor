@@ -4,6 +4,28 @@
     "y": 1973
   },
   "waiting_time": 0.5,
+  "notifications": {
+    "enabled": false,
+    "email": {
+      "enabled": false,
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "",
+      "password": "",
+      "from_email": "",
+      "to_email": "",
+      "use_tls": true
+    },
+    "webhook": {
+      "enabled": false,
+      "url": "",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "error_threshold": 3,
+    "notification_cooldown": 300
+  },
   "message": [
     {"text": "yes, continue", "weight": 5},
     {"text": "yes, continue; do all above suggested ; keep a log of changes in logs folder; also if any tests; make output in a log in logs folder for examining test output;", "weight": 1},
