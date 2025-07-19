@@ -3,7 +3,7 @@
     "x": 1631,
     "y": 1973
   },
-  "waiting_time": 0.5,
+  "waiting_time": 1,
   "notifications": {
     "enabled": false,
     "email": {
