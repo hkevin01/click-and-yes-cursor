@@ -72,23 +72,47 @@ def get_next_message(messages, cycling):
     return message
 
 
-def click_and_paste(x, y, message):
+def log_with_time(msg):
+    now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    print(f"{now} {msg}")
+    logging.info(f"{now} {msg}")
+
+
+def click_and_paste(x, y, message, max_retries=3):
     """Clicks at the given coordinates and pastes the message from clipboard."""
-    try:
-        now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-        full_message = f"{now} {message}"
-        print(f"[AUTOMATION] Moving mouse and clicking at ({x}, {y})")
-        logging.info(
-            f"Moving mouse and clicking at ({x}, {y})"
-        )
-        pyautogui.click(x, y)
-        time.sleep(0.5)
-        pyperclip.copy(full_message)
-        pyautogui.hotkey('ctrl', 'v')
-        pyautogui.press('enter')
-    except Exception as err:
-        print(f"Automation error: {err}")
-        logging.error(f"Automation error: {err}")
+    for attempt in range(max_retries):
+        try:
+            pyautogui.FAILSAFE = False
+            pyautogui.PAUSE = 0.1
+            now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+            full_message = f"{now} {message}"
+            log_with_time(f"[AUTOMATION] Attempt {attempt + 1}: Moving mouse and clicking at ({x}, {y})")
+            pyautogui.moveTo(x, y, duration=0.2)
+            time.sleep(0.1)
+            pyautogui.click(x, y)
+            time.sleep(0.5)
+            pyperclip.copy(full_message)
+            time.sleep(0.1)
+            clipboard_content = pyperclip.paste()
+            if clipboard_content != full_message:
+                log_with_time(f"[WARNING] Clipboard verification failed on attempt {attempt + 1}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+            pyautogui.hotkey('ctrl', 'v')
+            time.sleep(0.2)
+            pyautogui.press('enter')
+            log_with_time(f"[AUTOMATION] Completed successfully on attempt {attempt + 1}")
+            return True
+        except Exception as err:
+            log_with_time(f"[ERROR] Attempt {attempt + 1} failed: {err}")
+            if attempt < max_retries - 1:
+                log_with_time(f"[RETRY] Waiting 2 seconds before retry...")
+                time.sleep(2)
+            else:
+                log_with_time(f"[FAILED] All {max_retries} attempts failed")
+                return False
+    return False
 
 
 def check_platform_dependencies():
@@ -148,21 +172,25 @@ def run_plugins(message, coords):
 
 
 if __name__ == "__main__":
-    check_platform_dependencies()
-    # Set up logging
-    log_path = os.path.join(
-        os.path.dirname(__file__), '../logs/click_and_type.log'
-    )
-    handler = RotatingFileHandler(
-        log_path, maxBytes=1000000, backupCount=3
-    )
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(message)s',
-        handlers=[handler]
-    )
-
-    coords, messages, cycling = get_config()
-    message = get_next_message(messages, cycling)
-    run_plugins(message, coords)
-    click_and_paste(coords['x'], coords['y'], message)
+    try:
+        check_platform_dependencies()
+        log_path = os.path.join(
+            os.path.dirname(__file__), '../logs/click_and_type.log'
+        )
+        handler = RotatingFileHandler(
+            log_path, maxBytes=1000000, backupCount=3
+        )
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s %(levelname)s %(message)s',
+            handlers=[handler]
+        )
+        coords, messages, cycling = get_config()
+        message = get_next_message(messages, cycling)
+        log_with_time(f"[AUTOMATION] Starting automation with message: {message[:50]}...")
+        run_plugins(message, coords)
+        click_and_paste(coords['x'], coords['y'], message)
+        log_with_time("[AUTOMATION] Script completed successfully")
+    except Exception as e:
+        log_with_time(f"[AUTOMATION ERROR] Script failed: {e}")
+        exit(1)
