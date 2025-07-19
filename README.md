@@ -1,7 +1,18 @@
 # Click and Yes Cursor
 
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hkevin01/click-and-yes-cursor/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/)
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 ## Project Overview
 This project automates clicking specific coordinates (e.g., for a chat window) and pastes a configurable message (such as "yes, continue") at the target location. It is designed to streamline repetitive UI interactions, such as confirming prompts in chatbots or automated workflows.
+
+**Features include:**
+- Badges for build status, license, Python version, and code style
+- Automated logging of all actions and test results in the `logs` folder
+- Comprehensive test suite in the `tests` folder
+- Modular, maintainable codebase with clear documentation
 
 ## Features
 - Clicks at user-defined coordinates.
