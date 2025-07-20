@@ -5,13 +5,15 @@
   },
   "windows": [
     {
-      "title": "Chat Window 1"
-    },
-    {
-      "title": "Chat Window 2"
+      "title": "Cursor",
+      "coordinates": {
+        "x": 500,
+        "y": 400
+      },
+      "enabled": true
     }
   ],
-  "waiting_time": 1.0,
+  "waiting_time": 0.2,
   "notifications": {
     "enabled": false,
     "email": {
@@ -73,6 +75,12 @@
     },
     {
       "text": "examine the code, and project and examine github for similar projects make suggestions for improvements update project plan.md with suggestions and new phases"
-    }
-  ]
+    },
+    "test message",
+    "automation working"
+  ],
+  "cycling": "round_robin",
+  "window_cycling": "round_robin",
+  "fallback_to_coordinates": true,
+  "exclude_current_window": true
 }
