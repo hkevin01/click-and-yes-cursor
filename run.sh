@@ -67,7 +67,7 @@ while true; do
     log "${GREEN}Running automation script...${NC}"
 
     OUTPUT_FILE="$LOG_DIR/python_output.tmp"
-    python3 "$SCRIPT_DIR/scripts/click_and_type.py" > "$OUTPUT_FILE" 2>&1
+    python3 scripts/click_and_type_multi_linux.py > "$OUTPUT_FILE" 2>&1
     PYTHON_EXIT_CODE=$?
 
     if [ -f "$OUTPUT_FILE" ]; then

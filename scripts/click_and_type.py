@@ -12,6 +12,7 @@ from logging.handlers import RotatingFileHandler
 
 import pyautogui
 import pyperclip
+import pygetwindow as gw
 
 
 def get_config():
@@ -171,6 +172,34 @@ def run_plugins(message, coords):
             print(f"[PLUGIN ERROR] {plugin_name}: {e}")
 
 
+def get_windows():
+    """Reads window titles from config file."""
+    try:
+        with open(os.path.join(os.path.dirname(__file__), '../src/config.json'), encoding='utf-8') as f:
+            config = json.load(f)
+            windows = config.get('windows', [])
+            return [w['title'] for w in windows if 'title' in w]
+    except Exception as e:
+        print(f"Error reading windows from config: {e}")
+        return []
+
+
+def activate_window(title):
+    """Activates window by title using pygetwindow."""
+    try:
+        win = gw.getWindowsWithTitle(title)
+        if win:
+            win[0].activate()
+            time.sleep(0.5)
+            return True
+        else:
+            log_with_time(f"[WINDOW] No window found with title: {title}")
+            return False
+    except Exception as e:
+        log_with_time(f"[WINDOW ERROR] Could not activate window '{title}': {e}")
+        return False
+
+
 if __name__ == "__main__":
     try:
         check_platform_dependencies()
@@ -186,11 +215,22 @@ if __name__ == "__main__":
             handlers=[handler]
         )
         coords, messages, cycling = get_config()
-        message = get_next_message(messages, cycling)
-        log_with_time(f"[AUTOMATION] Starting automation with message: {message[:50]}...")
-        run_plugins(message, coords)
-        click_and_paste(coords['x'], coords['y'], message)
-        log_with_time("[AUTOMATION] Script completed successfully")
+        window_titles = get_windows()
+        if not window_titles:
+            window_titles = [None]  # fallback: no window cycling
+        while True:
+            for title in window_titles:
+                message = get_next_message(messages, cycling)
+                if title:
+                    log_with_time(f"[WINDOW] Activating window: {title}")
+                    activate_window(title)
+                log_with_time(f"[AUTOMATION] Sending message: {message[:50]}...")
+                run_plugins(message, coords)
+                click_and_paste(coords['x'], coords['y'], message)
+                log_with_time("[AUTOMATION] Message sent and window cycled.")
+                time.sleep(1)  # Wait 1 second between windows
+            waiting_time = 60  # 1 minute between cycles
+            time.sleep(waiting_time)
     except Exception as e:
         log_with_time(f"[AUTOMATION ERROR] Script failed: {e}")
         exit(1)

@@ -1,0 +1,37 @@
+{
+  "waiting_time": 1.0,
+  "cycling": "round_robin",
+  "message": [
+    "yes, continue",
+    "update test plan.md",
+    "proceed with changes"
+  ],
+  "windows": [
+    {
+      "title": "Microsoft Copilot: Your AI companion - Google Chrome",
+      "coordinates": {
+        "x": 1048,
+        "y": 525
+      },
+      "enabled": true
+    },
+    {
+      "title": "config.json - click-and-yes-cursor - Visual Studio Code",
+      "coordinates": {
+        "x": 960,
+        "y": 2660
+      },
+      "enabled": true
+    },
+    {
+      "title": "test_plan.md - brain-computer-compression - Cursor",
+      "coordinates": {
+        "x": 960,
+        "y": 2660
+      },
+      "enabled": true
+    }
+  ],
+  "window_cycling": "round_robin",
+  "fallback_to_coordinates": true
+}
