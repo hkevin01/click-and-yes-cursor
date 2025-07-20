@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Mouse-controlling automation that takes over mouse during operation
+Enhanced automation with better chat input focusing and debugging
 """
 import datetime
 import json
@@ -125,51 +125,78 @@ def find_target_windows(target_title, current_window_id, current_window_name):
         parts = line.split(None, 3)
         if len(parts) >= 4:
             window_id, desktop, host, window_title = parts[0], parts[1], parts[2], parts[3]
-    time.sleep(1.2)
-    log_with_time(f"Clicking chat input at exact coordinates: ({chat_x}, {chat_y})")
-    stdout, stderr, returncode = run_command(f'xdotool mousemove {chat_x} {chat_y}')
-    if returncode != 0:
-        log_with_time(f"Mouse move to chat failed: {stderr}")
-        return False
-    time.sleep(0.3)
-    stdout, stderr, returncode = run_command('xdotool click 1')
-    if returncode != 0:
-        log_with_time(f"Click on chat failed: {stderr}")
-        return False
-    log_with_time("✓ Chat input area clicked and focused")
-    time.sleep(0.8)
-    return True
+            if target_title.lower() in window_title.lower():
+                if not should_exclude_window(window_title, window_id, current_window_id):
+                    candidates.append((window_id, window_title))
+                    log_with_time(f"Found valid target: {window_id} - {window_title}")
+    log_with_time(f"Found {len(candidates)} valid target windows")
+    return candidates
 
-def send_message_to_chat(message):
+def get_next_window_index():
+    index_file = os.path.join(os.path.dirname(__file__), '../logs/window_index.txt')
     try:
-        if isinstance(message, dict):
-            message = message.get('text', str(message))
-        message = str(message)
+        if os.path.exists(index_file):
+            with open(index_file, 'r') as f:
+                current_index = int(f.read().strip())
+        else:
+            current_index = 0
+    except Exception:
+        current_index = 0
+    return current_index
+
+def update_window_index(new_index):
+    index_file = os.path.join(os.path.dirname(__file__), '../logs/window_index.txt')
+    try:
+        os.makedirs(os.path.dirname(index_file), exist_ok=True)
+        with open(index_file, 'w') as f:
+            f.write(str(new_index))
+    except Exception as e:
+        log_with_time(f"Warning: Could not save window index: {e}")
+
+def perform_controlled_automation(window_id, chat_x, chat_y, message):
+    original_x, original_y = take_mouse_control(chat_x, chat_y)
+    try:
+        log_with_time(f"Activating target window: {window_id}")
+        run_command(f"wmctrl -ia {window_id}")
+        time.sleep(1.0)
+        log_with_time("Re-positioning mouse at chat coordinates")
+        run_command(f'xdotool mousemove {chat_x} {chat_y}')
+        time.sleep(0.3)
+        log_with_time("Performing aggressive chat focus sequence")
+        for i in range(3):
+            run_command('xdotool click 1')
+            time.sleep(0.1)
+        time.sleep(0.5)
+        log_with_time("Clearing chat input and preparing to type")
+        run_command('xdotool key ctrl+a')
+        time.sleep(0.2)
         now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
         full_message = f"{now} {message}"
-        log_with_time(f"Typing in chat: {message[:50]}...")
-        stdout, stderr, returncode = run_command('xdotool key ctrl+a')
-        time.sleep(0.2)
-        escaped_message = full_message.replace('"', '\"').replace("'", "\\'").replace('`', '\`')
-        stdout, stderr, returncode = run_command(f'xdotool type "{escaped_message}"')
-        if returncode == 0:
-            log_with_time("✓ Message typed into chat input")
-            time.sleep(0.5)
-            stdout, stderr, returncode = run_command('xdotool key Return')
-            if returncode == 0:
-                log_with_time("✓ Message sent to chat successfully")
-                return True
-            else:
-                log_with_time(f"Enter key failed: {stderr}")
-        else:
-            log_with_time(f"Typing failed: {stderr}")
-        return False
+        log_with_time(f"Typing message: {message[:50]}...")
+        try:
+            import pyperclip
+            pyperclip.copy(full_message)
+            run_command('xdotool key ctrl+v')
+            log_with_time("✓ Message pasted via clipboard")
+        except ImportError:
+            escaped_message = full_message.replace('"', '\"').replace("'", "\\'")
+            run_command(f'xdotool type "{escaped_message}"')
+            log_with_time("✓ Message typed directly")
+        time.sleep(0.5)
+        log_with_time("Sending message...")
+        run_command('xdotool key Return')
+        time.sleep(0.3)
+        log_with_time("✓ Message sent successfully")
+        return True
     except Exception as e:
-        log_with_time(f"Send message failed: {e}")
+        log_with_time(f"Automation error: {e}")
         return False
+    finally:
+        time.sleep(0.5)
+        restore_mouse_position(original_x, original_y)
 
 if __name__ == "__main__":
-    log_with_time("=== FIXED-COORDINATE CHAT AUTOMATION STARTING ===")
+    log_with_time("=== MOUSE-CONTROLLED CHAT AUTOMATION STARTING ===")
     try:
         current_window_id, current_window_name = get_current_window_info()
         log_with_time(f"Current window: {current_window_name} (ID: {current_window_id})")
@@ -185,7 +212,7 @@ if __name__ == "__main__":
             log_with_time("ERROR: No chat coordinates configured!")
             sys.exit(1)
         chat_x, chat_y = chat_coordinates['x'], chat_coordinates['y']
-        log_with_time(f"Using fixed chat coordinates: ({chat_x}, {chat_y})")
+        log_with_time(f"Using chat coordinates: ({chat_x}, {chat_y})")
         all_target_windows = []
         for window_config in windows:
             if not window_config.get('enabled', True):
@@ -195,9 +222,7 @@ if __name__ == "__main__":
             for window_id, window_title in candidates:
                 all_target_windows.append({
                     'id': window_id,
-                    'title': window_title,
-                    'chat_x': chat_x,
-                    'chat_y': chat_y
+                    'title': window_title
                 })
         if not all_target_windows:
             log_with_time("No valid target windows found")
@@ -212,18 +237,17 @@ if __name__ == "__main__":
         message = messages[message_index]
         log_with_time(f"Target window {window_index + 1}/{len(all_target_windows)}: {target_window['title']}")
         log_with_time(f"Message: {str(message)[:50]}...")
-        success = activate_window_and_focus_chat(
+        success = perform_controlled_automation(
             target_window['id'],
-            target_window['chat_x'],
-            target_window['chat_y']
+            chat_x,
+            chat_y,
+            message
         )
         if success:
-            success = send_message_to_chat(message)
-        if success:
-            log_with_time("✓ Fixed-coordinate chat automation completed successfully")
+            log_with_time("✓ Mouse-controlled automation completed successfully")
         else:
-            log_with_time("⚠ Fixed-coordinate chat automation completed with issues")
-        log_with_time("=== FIXED-COORDINATE CHAT AUTOMATION COMPLETED ===")
+            log_with_time("⚠ Mouse-controlled automation completed with issues")
+        log_with_time("=== MOUSE-CONTROLLED CHAT AUTOMATION COMPLETED ===")
     except KeyboardInterrupt:
         log_with_time(f"🛑 Keyboard interrupt received at {datetime.datetime.now().strftime('%H:%M:%S')}")
         log_with_time("=== AUTOMATION TERMINATED BY USER ===")
