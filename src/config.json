@@ -1,8 +1,4 @@
 {
-  "coordinates": {
-    "x": 1631,
-    "y": 1973
-  },
   "windows": [
     {
       "title": "Cursor",
@@ -13,34 +9,12 @@
       "enabled": true
     }
   ],
-  "waiting_time": 1.0,
-  "notifications": {
-    "enabled": false,
-    "email": {
-      "enabled": false,
-      "smtp_server": "smtp.gmail.com",
-      "smtp_port": 587,
-      "username": "",
-      "password": "",
-      "from_email": "",
-      "to_email": "",
-      "use_tls": true
-    },
-    "webhook": {
-      "enabled": false,
-      "url": "",
-      "headers": {
-        "Content-Type": "application/json"
-      }
-    },
-    "error_threshold": 3,
-    "notification_cooldown": 300
-  },
   "message": [
     "yes, continue",
     "working on it",
     "update progress"
   ],
+  "waiting_time": 0.25,
   "cycling": "round_robin",
   "window_cycling": "round_robin",
   "fallback_to_coordinates": true

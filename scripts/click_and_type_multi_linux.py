@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced automation with better chat input focusing and debugging
+Fixed window cycling automation that properly switches between Cursor windows
 """
 import datetime
 import json
@@ -152,6 +152,29 @@ def update_window_index(new_index):
             f.write(str(new_index))
     except Exception as e:
         log_with_time(f"Warning: Could not save window index: {e}")
+
+def reset_chat_input():
+    log_with_time("🔄 RESETTING CHAT INPUT")
+    for attempt in range(5):
+        log_with_time(f"Attempt {attempt + 1}/5 to reset chat input")
+        run_command('xdotool key ctrl+a')
+        time.sleep(0.2)
+        run_command('xdotool key Delete')
+        time.sleep(0.2)
+        run_command('xdotool key ctrl+v')
+        time.sleep(0.2)
+        run_command('xdotool key Return')
+        time.sleep(0.3)
+        # Verify if the message was sent successfully
+        stdout, stderr, returncode = run_command('xdotool getwindowfocus getwindowname')
+        if returncode == 0 and "error" not in stderr.lower():
+            log_with_time("✓ Chat input reset and message sent successfully")
+            return True
+        else:
+            log_with_time("⚠ Failed to reset chat input, retrying...")
+            time.sleep(0.5)
+    log_with_time("❌ Unable to reset chat input after multiple attempts")
+    return False
 
 def perform_controlled_automation(window_id, chat_x, chat_y, message):
     original_x, original_y = take_mouse_control(chat_x, chat_y)
