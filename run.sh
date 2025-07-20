@@ -10,7 +10,7 @@ log_with_time() {
 
 cleanup() {
     log_with_time "[INFO] 🛑 Shutdown signal received"
-    log_with_time "[INFO] Cleaning up any remaining automation processes..."
+    log_with_time "[INFO] Cleaning up..."
     pkill -f "click_and_type_multi_linux.py" 2>/dev/null || true
     log_with_time "[INFO] === AUTOMATION RUNNER TERMINATED ==="
     exit 0
@@ -18,24 +18,17 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-log_with_time "=== ROBUST AUTOMATION RUNNER STARTING ==="
+log_with_time "=== AUTOMATION RUNNER STARTING ==="
 log_with_time "Press Ctrl+C to stop gracefully"
 
-WAIT_TIME=$(python3 -c "
-import json
-try:
-    with open('src/config.json') as f:
-        config = json.load(f)
-    wait_minutes = config.get('waiting_time', 0.5)
-    print(int(wait_minutes * 60))
-except:
-    print(30)
-" 2>/dev/null || echo "30")
+# Use 15 second intervals
+WAIT_TIME=15
 
 LOOP_COUNT=0
 while true; do
     LOOP_COUNT=$((LOOP_COUNT + 1))
-    log_with_time "==================== AUTOMATION RUN #$LOOP_COUNT ===================="
+    log_with_time "==================== RUN #$LOOP_COUNT ===================="
+    # Validate config
     if ! python3 -c "
 import json
 with open('src/config.json') as f:
@@ -48,16 +41,15 @@ print('Configuration valid. Running automation...')
         sleep 10
         continue
     fi
+    # Run automation
     if timeout 45 python3 scripts/click_and_type_multi_linux.py; then
         log_with_time "✓ Automation run #$LOOP_COUNT completed successfully"
     else
         log_with_time "⚠ Automation run #$LOOP_COUNT completed with issues"
     fi
     log_with_time "Waiting $WAIT_TIME seconds before next run... (Press Ctrl+C to exit)"
+    # Interruptible sleep
     for ((i=0; i<WAIT_TIME; i++)); do
         sleep 1
-        if ! kill -0 $$ 2>/dev/null; then
-            exit 0
-        fi
     done
 done
