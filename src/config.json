@@ -7,13 +7,13 @@
     {
       "title": "Cursor",
       "coordinates": {
-        "x": 500,
-        "y": 400
+        "x": 1631,
+        "y": 1973
       },
       "enabled": true
     }
   ],
-  "waiting_time": 0.2,
+  "waiting_time": 1.0,
   "notifications": {
     "enabled": false,
     "email": {
@@ -37,50 +37,11 @@
     "notification_cooldown": 300
   },
   "message": [
-    {
-      "text": "yes, continue",
-      "weight": 5
-    },
-    {
-      "text": "yes, continue; do all above suggested ; keep a log of changes in logs folder; also if any tests; make output in a log in logs folder for examining test output;",
-      "weight": 1
-    },
-    {
-      "text": "General Instructions 1. Work Iteratively by Phases:   - Focus on completing all tasks within the current phase before moving to the next phase.   - Revisit completed phases periodically to refine or enhance features based on feedback or new requirements.",
-      "weight": 1
-    },
-    {
-      "text": "2. Create, Organize, and Update Files:   - Follow the project structure and ensure all necessary files and folders are created with appropriate content.   - Regularly update key files, including project_plan.md and test_plan.md, to reflect progress, changes, and future improvements.",
-      "weight": 1
-    },
-    {
-      "text": "3. Write Modular and Maintainable Code:   - Ensure all code is clean, reusable, and well-documented, adhering to best practices.   - Refactor existing code as needed to improve efficiency, readability, and maintainability.",
-      "weight": 1
-    },
-    {
-      "text": "update readme.md"
-    },
-    {
-      "text": "update project plan.md"
-    },
-    {
-      "text": "update test plan.md"
-    },
-    {
-      "text": "run full test suite"
-    },
-    {
-      "text": "yes, continue",
-      "weight": 5
-    },
-    {
-      "text": "examine the code, and project and examine github for similar projects make suggestions for improvements update project plan.md with suggestions and new phases"
-    },
-    "test message",
-    "automation working"
+    "yes, continue",
+    "working on it",
+    "update progress"
   ],
   "cycling": "round_robin",
   "window_cycling": "round_robin",
-  "fallback_to_coordinates": true,
-  "exclude_current_window": true
+  "fallback_to_coordinates": true
 }
