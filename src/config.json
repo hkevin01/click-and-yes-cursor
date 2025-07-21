@@ -18,7 +18,11 @@
     {"text": "update readme.md and update badges"},
     {"text": "update project plan.md checkboxes"},
     {"text": "update test plan.md checkboxes"},
-    {"text": "run full test suite"},
+    {"text": "update .gitignore and other config files"},
+    {"text": "update .copilot/config.json"},
+    {"text": "update package.json"},
+    {"text": "run all tests; update test plan.md with results and new tests if needed"},
+   {"text": "run full test suite"},
     {"text": "yes, continue", "weight": 5},
     {"text": "examine the code, and project; make suggestions for improvements update project plan.md with suggestions and new phases with checkboxes"}
   ],
