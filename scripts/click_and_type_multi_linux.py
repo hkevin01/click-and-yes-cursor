@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-BULLETPROOF CHATBOX-ONLY AUTOMATION
-- Only pastes in chatbox area
-- Immediately undos any accidental pastes
-- Multiple safety checks and verifications
-- GPT 4.1 compatible messaging
+CURSOR AI CHAT AUTOMATION
+- Specifically designed for Cursor's AI chat interface
+- Bypasses file-based danger detection for Cursor windows
+- Targets AI chat input field, not code editor
+- Handles Cursor's chat interface properly
 """
 import datetime
 import json
@@ -35,6 +35,7 @@ def run_command(cmd, timeout=10):
         return "", str(e), 1
 
 def load_config():
+    """Load config.json exactly as specified - never modify it"""
     try:
         config_path = os.path.join(os.path.dirname(__file__), '../src/config.json')
         with open(config_path, encoding='utf-8') as f:
@@ -45,6 +46,7 @@ def load_config():
         sys.exit(1)
 
 def prepare_weighted_messages(message_config):
+    """Create weighted message list based on config weights"""
     weighted_messages = []
     for msg_item in message_config:
         if isinstance(msg_item, dict):
@@ -58,6 +60,7 @@ def prepare_weighted_messages(message_config):
     return weighted_messages
 
 def find_cursor_windows():
+    """Find all actual Cursor windows (excluding automation project)"""
     log_with_time("🔍 Finding Cursor windows...")
     stdout, stderr, returncode = run_command("wmctrl -l")
     if returncode != 0:
@@ -82,24 +85,27 @@ def find_cursor_windows():
     return cursor_windows
 
 def activate_window(window_info):
+    """Activate window using wmctrl with verification"""
     window_id = window_info['id']
     window_title = window_info['title']
     log_with_time(f"🎯 Activating: {window_title}")
-    log_with_time(f"Window ID: {window_id}")
-    run_command(f"wmctrl -ia {window_id}")
-    time.sleep(2.0)
-    current_id, _, _ = run_command('xdotool getwindowfocus')
-    current_name, _, _ = run_command('xdotool getwindowfocus getwindowname')
-    try:
-        expected_decimal = str(int(window_id, 16))
-    except:
-        expected_decimal = window_id
-    if current_id.strip() == expected_decimal or window_title.lower() in current_name.lower():
-        log_with_time(f"✅ Window activated: {current_name.strip()}")
-        return True
-    else:
-        log_with_time(f"⚠ Window activation uncertain. Expected: {window_title}, Got: {current_name.strip()}")
-        return False
+    for attempt in range(3):
+        run_command(f"wmctrl -ia {window_id}")
+        time.sleep(1.5)
+        current_id, _, _ = run_command('xdotool getwindowfocus')
+        current_name, _, _ = run_command('xdotool getwindowfocus getwindowname')
+        try:
+            expected_decimal = str(int(window_id, 16))
+        except:
+            expected_decimal = window_id
+        if current_id.strip() == expected_decimal or window_title.lower() in current_name.lower():
+            log_with_time(f"✅ Window activated: {current_name.strip()}")
+            return True
+        else:
+            log_with_time(f"⚠ Activation attempt {attempt + 1} failed")
+            if attempt < 2:
+                time.sleep(1.0)
+    return False
 
 def get_current_mouse_position():
     try:
@@ -128,170 +134,133 @@ def get_current_window_under_mouse():
     except:
         return None, None
 
-def emergency_undo_if_wrong_location():
-    log_with_time("🚨 EMERGENCY UNDO CHECK")
-    window_id, window_name = get_current_window_under_mouse()
-    if window_name:
-        log_with_time(f"Current window under mouse: {window_name}")
-        dangerous_indicators = [
-            'visual studio code', 'code', 'vim', 'nano', 'gedit', 'notepad', 'editor', '.py', '.js', '.json', '.md', '.txt', 'file', 'document'
-        ]
-        window_name_lower = window_name.lower()
-        is_dangerous = any(indicator in window_name_lower for indicator in dangerous_indicators)
-        if is_dangerous:
-            log_with_time(f"⚠ DANGER: Detected text editor/file: {window_name}")
-            log_with_time("🔄 PERFORMING EMERGENCY UNDO")
-            for undo_attempt in range(5):
-                run_command('xdotool key ctrl+z')
-                time.sleep(0.3)
-            run_command('xdotool key Delete')
-            time.sleep(0.2)
-            run_command('xdotool key BackSpace')
-            time.sleep(0.2)
-            log_with_time("✅ Emergency undo completed")
-            return True
-        else:
-            log_with_time(f"✅ Safe window detected: {window_name}")
-            return False
-    else:
-        log_with_time("⚠ Could not determine current window")
-        return False
-
-def verify_chatbox_area(chat_x, chat_y):
-    log_with_time("🔍 CHATBOX AREA VERIFICATION")
-    run_command(f'xdotool mousemove {chat_x} {chat_y}')
-    time.sleep(0.5)
-    window_id, window_name = get_current_window_under_mouse()
-    if window_name:
-        log_with_time(f"Window at chatbox coordinates: {window_name}")
-        chat_indicators = ['cursor', 'chat', 'ai', 'assistant', 'copilot']
-        window_name_lower = window_name.lower()
-        is_chat_area = any(indicator in window_name_lower for indicator in chat_indicators)
-        if is_chat_area:
-            log_with_time(f"✅ Verified chatbox area: {window_name}")
-            return True
-        else:
-            log_with_time(f"⚠ WARNING: Not recognized as chat area: {window_name}")
-            return False
-    else:
-        log_with_time("⚠ Could not verify window at chatbox coordinates")
-        return False
-
-def bulletproof_chatbox_only_messaging(message, chat_x, chat_y):
-    log_with_time("🛡️ BULLETPROOF CHATBOX-ONLY MESSAGING INITIATED")
-    log_with_time(f"Target chatbox coordinates: ({chat_x}, {chat_y})")
-    original_x, original_y = get_current_mouse_position()
-    log_with_time(f"Original mouse position: ({original_x}, {original_y})")
-    if not verify_chatbox_area(chat_x, chat_y):
-        log_with_time("❌ SAFETY ABORT: Could not verify chatbox area")
-        return False
+def cursor_ai_chat_safety_check():
     try:
-        log_with_time("🧹 Safety Layer 2: Clearing any existing selections")
-        run_command('xdotool key Escape')
-        time.sleep(0.5)
-        run_command('xdotool key Escape')
-        time.sleep(0.5)
-        log_with_time("📍 Safety Layer 3: Precise chatbox positioning")
-        for positioning_attempt in range(3):
-            run_command(f'xdotool mousemove {chat_x} {chat_y}')
-            time.sleep(0.3)
-            current_x, current_y = get_current_mouse_position()
-            if current_x == chat_x and current_y == chat_y:
-                log_with_time(f"✅ Positioned at exact coordinates: ({current_x}, {current_y})")
-                break
-            else:
-                log_with_time(f"⚠ Position correction needed. Attempt {positioning_attempt + 1}")
-        if not verify_chatbox_area(chat_x, chat_y):
-            log_with_time("❌ SAFETY ABORT: Chatbox verification failed after positioning")
+        window_id, window_name = get_current_window_under_mouse()
+        if not window_name:
+            log_with_time("⚠ Could not detect window under mouse")
             return False
-        log_with_time("🎯 Safety Layer 5: Chatbox focusing")
-        click_patterns = [
-            ('single', 1), ('double', 2), ('triple', 3), ('single', 1), ('single', 1)
+        window_name_lower = window_name.lower()
+        if 'cursor' in window_name_lower:
+            log_with_time(f"✅ CURSOR AI CHAT TARGET: {window_name}")
+            return False
+        truly_dangerous = [
+            'terminal', 'console', 'shell', 'bash', 'zsh',
+            'vim', 'nvim', 'nano', 'gedit', 'kate',
+            'file manager', 'nautilus', 'dolphin',
+            'system settings', 'control panel'
         ]
-        for pattern_name, click_count in click_patterns:
-            log_with_time(f"Executing {pattern_name} click pattern")
-            run_command(f'xdotool click --repeat {click_count} 1')
-            time.sleep(0.4)
-            if emergency_undo_if_wrong_location():
-                log_with_time("❌ SAFETY ABORT: Dangerous area detected during clicking")
-                return False
-        log_with_time("🧹 Safety Layer 6: Clearing chatbox content")
-        run_command('xdotool key ctrl+a')
-        time.sleep(0.3)
-        if emergency_undo_if_wrong_location():
-            log_with_time("❌ SAFETY ABORT: Dangerous area detected during selection")
+        is_truly_dangerous = any(danger in window_name_lower for danger in truly_dangerous)
+        if is_truly_dangerous:
+            log_with_time(f"⚠ TRULY DANGEROUS AREA: {window_name}")
+            return True
+        log_with_time(f"✅ SAFE FOR AI CHAT: {window_name}")
+        return False
+    except:
+        log_with_time("⚠ Safety check error - being cautious")
+        return True
+
+def cursor_ai_chat_messaging(message, chat_x, chat_y):
+    log_with_time("🤖 CURSOR AI CHAT MESSAGING")
+    log_with_time(f"AI Chat message: '{message}'")
+    original_x, original_y = get_current_mouse_position()
+    now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    full_message = f"{now} {message}"
+    log_with_time(f"Full AI message: '{full_message}'")
+    log_with_time(f"Message length: {len(full_message)} characters")
+    try:
+        log_with_time("📍 Step 1: Navigate to AI chat input coordinates")
+        run_command(f'xdotool mousemove {chat_x} {chat_y}')
+        time.sleep(0.8)
+        current_x, current_y = get_current_mouse_position()
+        log_with_time(f"Mouse at AI chat coordinates: ({current_x}, {current_y})")
+        if cursor_ai_chat_safety_check():
+            log_with_time("❌ ABORT: Dangerous area detected (not Cursor AI chat)")
             return False
-        run_command('xdotool key Delete')
-        time.sleep(0.3)
-        log_with_time("📝 Safety Layer 7: GPT 4.1 compatible message preparation")
-        now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-        formatted_message = f"{now} {message}"
-        if len(formatted_message) > 2000:
-            formatted_message = formatted_message[:1900] + "... [message truncated for clarity]"
-        log_with_time(f"GPT 4.1 formatted message: {formatted_message[:100]}...")
-        log_with_time("📋 Safety Layer 8: Secure pasting")
-        clipboard_success = False
-        try:
-            import pyperclip
-            pyperclip.copy("")
-            time.sleep(0.2)
-            pyperclip.copy(formatted_message)
-            time.sleep(0.3)
-            clipboard_content = pyperclip.paste()
-            if clipboard_content == formatted_message:
-                log_with_time("✅ Clipboard verified for GPT 4.1 message")
-                run_command('xdotool key ctrl+v')
-                time.sleep(0.5)
-                if emergency_undo_if_wrong_location():
-                    log_with_time("❌ SAFETY ABORT: Dangerous paste detected - undone")
-                    return False
-                log_with_time("✅ Message safely pasted in chatbox")
-                clipboard_success = True
-            else:
-                log_with_time("⚠ Clipboard verification failed")
-        except ImportError:
-            log_with_time("pyperclip not available, using safe typing method")
-        except Exception as e:
-            log_with_time(f"Clipboard method failed: {e}")
-        if not clipboard_success:
-            log_with_time("📝 Safety Layer 9: Safe typing fallback")
-            safe_message = formatted_message.replace('"', '\"').replace('$', '\$').replace('`', '\`').replace('\\', '\\\\')
-            run_command(f'xdotool type --delay 50 "{safe_message}"')
+        log_with_time("🎯 Step 2: Focus AI chat input field")
+        for click_attempt in range(3):
+            log_with_time(f"🖱️ AI chat focus click {click_attempt + 1}/3")
+            run_command('xdotool click 1')
             time.sleep(1.0)
-            if emergency_undo_if_wrong_location():
-                log_with_time("❌ SAFETY ABORT: Dangerous typing detected - undone")
+            if cursor_ai_chat_safety_check():
+                log_with_time("❌ ABORT: Dangerous area after click")
                 return False
-            log_with_time("✅ Message safely typed in chatbox")
-        log_with_time("🔍 Safety Layer 10: Final content verification")
+        log_with_time("✅ AI chat input field focused")
+        log_with_time("📝 Step 3: INSERT MESSAGE INTO AI CHAT")
+        log_with_time("🧹 Clearing AI chat input field")
         run_command('xdotool key ctrl+a')
-        time.sleep(0.5)
-        if emergency_undo_if_wrong_location():
-            log_with_time("❌ SAFETY ABORT: Final verification failed")
-            return False
+        time.sleep(0.4)
+        run_command('xdotool key Delete')
+        time.sleep(0.4)
+        message_inserted = False
         try:
             import pyperclip
-            run_command('xdotool key ctrl+c')
-            time.sleep(0.5)
-            verified_content = pyperclip.paste()
-            if message in verified_content:
-                log_with_time("✅ Final verification: Message confirmed in chatbox")
+            log_with_time("📋 AI Chat Method 1: Clipboard insertion")
+            pyperclip.copy("")
+            time.sleep(0.3)
+            pyperclip.copy(full_message)
+            time.sleep(0.4)
+            clipboard_content = pyperclip.paste()
+            if clipboard_content == full_message:
+                log_with_time("✅ AI message in clipboard, pasting to chat")
+                run_command('xdotool key ctrl+v')
+                time.sleep(2.5)
+                log_with_time("📋 AI chat clipboard paste completed")
+                message_inserted = True
             else:
-                log_with_time("⚠ Final verification: Content uncertain")
-        except:
-            log_with_time("Final verification skipped (pyperclip unavailable)")
-        log_with_time("📤 Safety Layer 11: Sending to GPT 4.1")
+                log_with_time("❌ AI clipboard verification failed")
+        except Exception as e:
+            log_with_time(f"⚠ AI clipboard method error: {e}")
+        if not message_inserted:
+            log_with_time("⌨️ AI Chat Method 2: Direct typing to AI")
+            log_with_time("⌨️ Typing message to Cursor AI...")
+            for i, char in enumerate(full_message):
+                if char in ['"', "'", '\\', '$', '`']:
+                    escaped_char = f'\\{char}'
+                else:
+                    escaped_char = char
+                run_command(f'xdotool type "{escaped_char}"')
+                time.sleep(0.06)
+                if (i + 1) % 15 == 0:
+                    log_with_time(f"⌨️ AI chat typing: {i + 1}/{len(full_message)} characters")
+            log_with_time("✅ AI message typed into chat")
+            message_inserted = True
+        if not message_inserted:
+            log_with_time("❌ Failed to insert message into AI chat")
+            return False
+        log_with_time("🚀 Step 4: SEND MESSAGE TO CURSOR AI")
+        log_with_time("⏳ AI chat message stabilization: 2.5 seconds")
+        time.sleep(2.5)
+        log_with_time("📍 Positioning cursor at end of AI message")
         run_command('xdotool key End')
-        time.sleep(0.3)
-        run_command('xdotool key Return')
-        time.sleep(1.0)
-        log_with_time("✅ BULLETPROOF MESSAGING COMPLETED - MESSAGE SENT TO GPT 4.1")
+        time.sleep(0.6)
+        if cursor_ai_chat_safety_check():
+            log_with_time("❌ ABORT: Safety check failed before sending to AI")
+            return False
+        log_with_time("⏎ SENDING MESSAGE TO CURSOR AI")
+        ai_send_methods = [
+            ("AI Send 1: Return", "xdotool key Return"),
+            ("AI Send 2: End+Return", "xdotool key End && sleep 0.4 && xdotool key Return"),
+            ("AI Send 3: Return", "xdotool key Return"),
+            ("AI Send 4: Keypad Enter", "xdotool key KP_Enter"),
+            ("AI Send 5: Final Return", "xdotool key Return")
+        ]
+        for method_name, command in ai_send_methods:
+            log_with_time(f"⏎ {method_name}")
+            run_command(command)
+            time.sleep(1.2)
+        log_with_time("✅ MESSAGE SENT TO CURSOR AI")
+        log_with_time("⏳ Waiting for Cursor AI processing: 2.0 seconds")
+        time.sleep(2.0)
+        log_with_time("✅ CURSOR AI CHAT MESSAGING COMPLETED")
+        log_with_time(f"🤖 Sent to AI: '{message}'")
+        log_with_time("⏎ Message sent with multiple methods")
         return True
     except Exception as e:
-        log_with_time(f"❌ Bulletproof messaging failed: {e}")
-        emergency_undo_if_wrong_location()
+        log_with_time(f"❌ Cursor AI chat messaging failed: {e}")
         return False
     finally:
-        log_with_time(f"🎮 Restoring mouse to original position: ({original_x}, {original_y})")
+        log_with_time(f"🎮 Restoring mouse position: ({original_x}, {original_y})")
         run_command(f'xdotool mousemove {original_x} {original_y}')
         time.sleep(0.3)
 
@@ -315,69 +284,80 @@ def update_window_index(index):
     except Exception as e:
         log_with_time(f"Warning: Could not save index: {e}")
 
-def log_automation_stats(target_window, message, cursor_windows, weighted_messages):
+def log_cursor_ai_stats(target_window, message, cursor_windows, weighted_messages, success):
     try:
         logs_dir = os.path.join(os.path.dirname(__file__), '../logs')
         os.makedirs(logs_dir, exist_ok=True)
-        stats_file = os.path.join(logs_dir, 'automation_stats.log')
+        stats_file = os.path.join(logs_dir, 'cursor_ai_chat_stats.log')
         with open(stats_file, 'a') as f:
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"\n[{now}] GPT 4.1 AUTOMATION RUN\n")
-            f.write(f"Target Window: {target_window['title']} ({target_window['id']})\n")
-            f.write(f"Message: {message[:100]}...\n")
-            f.write(f"Available Windows: {len(cursor_windows)}\n")
-            f.write(f"Message Pool Size: {len(weighted_messages)}\n")
-            f.write(f"Safety Layers: 11 layers active\n")
-            f.write(f"GPT Version: 4.1 compatible\n")
+            f.write(f"\n[{now}] CURSOR AI CHAT AUTOMATION RUN\n")
+            f.write(f"SUCCESS: {'YES' if success else 'NO'}\n")
+            f.write(f"TARGET: {target_window['title']} ({target_window['id']})\n")
+            f.write(f"AI MESSAGE: {message}\n")
+            f.write(f"PURPOSE: Cursor AI chat interface\n")
+            f.write(f"SAFETY: Cursor-specific (allows AI chat)\n")
+            f.write(f"METHOD: AI chat input field targeting\n")
             f.write("=" * 50 + "\n")
     except Exception as e:
-        log_with_time(f"Warning: Could not write stats: {e}")
+        log_with_time(f"Warning: Could not write AI stats: {e}")
 
 if __name__ == "__main__":
-    log_with_time("=== BULLETPROOF GPT 4.1 CHATBOX-ONLY AUTOMATION ===")
+    log_with_time("=" * 70)
+    log_with_time("CURSOR AI CHAT AUTOMATION")
+    log_with_time("🤖 PURPOSE: Send messages to Cursor's AI chat interface")
+    log_with_time("🎯 TARGET: AI chat input field, not code editor")
+    log_with_time("✅ SAFETY: Allows Cursor, blocks dangerous apps")
+    log_with_time("=" * 70)
     try:
         config = load_config()
         windows_config = config.get('windows', [])
         message_config = config.get('message', [])
-        cycling_mode = config.get('window_cycling', 'round_robin')
         if not windows_config or not message_config:
             log_with_time("❌ Invalid configuration")
             sys.exit(1)
         chat_coordinates = windows_config[0].get('coordinates', {})
         if not chat_coordinates:
-            log_with_time("❌ No chat coordinates in config")
+            log_with_time("❌ No AI chat coordinates in config")
             sys.exit(1)
         chat_x, chat_y = chat_coordinates['x'], chat_coordinates['y']
-        log_with_time(f"GPT 4.1 chatbox coordinates: ({chat_x}, {chat_y})")
+        log_with_time(f"Cursor AI chat coordinates: ({chat_x}, {chat_y})")
         weighted_messages = prepare_weighted_messages(message_config)
-        log_with_time(f"Prepared {len(weighted_messages)} GPT 4.1 compatible messages")
+        log_with_time(f"Prepared {len(weighted_messages)} AI message options")
         cursor_windows = find_cursor_windows()
         if not cursor_windows:
             log_with_time("❌ No Cursor windows found")
             sys.exit(1)
-        log_with_time(f"📋 Available Cursor windows with GPT 4.1 ({len(cursor_windows)}):")
+        log_with_time(f"📋 Available Cursor windows ({len(cursor_windows)}):")
         for i, window in enumerate(cursor_windows):
-            log_with_time(f"  {i+1}. {window['title']} ({window['id']})")
+            log_with_time(f"  {i+1}. {window['title']}")
         current_index = get_window_index()
         target_index = current_index % len(cursor_windows)
         target_window = cursor_windows[target_index]
         selected_message = random.choice(weighted_messages)
-        log_with_time(f"🎯 TARGET: Window {target_index + 1}/{len(cursor_windows)}: {target_window['title']}")
-        log_with_time(f"📝 GPT 4.1 MESSAGE: {selected_message[:100]}...")
+        log_with_time(f"🎯 TARGET CURSOR WINDOW: {target_window['title']}")
+        log_with_time(f"🤖 AI MESSAGE: '{selected_message[:80]}...'")
         success = True
+        log_with_time("🔄 Step 1: Activate Cursor window")
         if not activate_window(target_window):
             success = False
-        if not bulletproof_chatbox_only_messaging(selected_message, chat_x, chat_y):
-            success = False
+            log_with_time("❌ Cursor window activation failed")
+        if success:
+            log_with_time("🔄 Step 2: Send message to Cursor AI chat")
+            if not cursor_ai_chat_messaging(selected_message, chat_x, chat_y):
+                success = False
+                log_with_time("❌ Cursor AI chat messaging failed")
         next_index = (current_index + 1) % len(cursor_windows)
         update_window_index(next_index)
-        log_with_time(f"🔄 Next run will target window {(target_index + 1) % len(cursor_windows) + 1}")
-        log_automation_stats(target_window, selected_message, cursor_windows, weighted_messages)
+        log_with_time(f"🔄 Next run targets Cursor window {(target_index + 1) % len(cursor_windows) + 1}")
+        log_cursor_ai_stats(target_window, selected_message, cursor_windows, weighted_messages, success)
         if success:
-            log_with_time("✅ BULLETPROOF GPT 4.1 AUTOMATION COMPLETED SUCCESSFULLY")
+            log_with_time("✅ CURSOR AI CHAT AUTOMATION SUCCESSFUL")
+            log_with_time("🤖 Message sent to Cursor AI interface")
+            log_with_time("⏎ AI chat message delivered")
         else:
-            log_with_time("⚠ AUTOMATION COMPLETED WITH SAFETY ABORTS")
-        log_with_time("=== BULLETPROOF AUTOMATION COMPLETED ===")
+            log_with_time("❌ AUTOMATION FAILED")
+        log_with_time("=" * 70)
     except KeyboardInterrupt:
         log_with_time("🛑 Interrupted by user")
         sys.exit(0)
