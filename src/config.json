@@ -15,12 +15,12 @@
     {"text": "General Instructions 1. Work Iteratively by Phases:   - Focus on completing all tasks within the current phase before moving to the next phase.   - Revisit completed phases periodically to refine or enhance features based on feedback or new requirements.", "weight": 1},
     {"text": "2. Create, Organize, and Update Files:   - Follow the project structure and ensure all necessary files and folders are created with appropriate content.   - Regularly update key files, including project_plan.md and test_plan.md, to reflect progress, changes, and future improvements.", "weight": 1},
     {"text": "3. Write Modular and Maintainable Code:   - Ensure all code is clean, reusable, and well-documented, adhering to best practices.   - Refactor existing code as needed to improve efficiency, readability, and maintainability.", "weight": 1},
-    {"text": "update readme.md"},
-    {"text": "update project plan.md"},
-    {"text": "update test plan.md"},
+    {"text": "update readme.md and update badges"},
+    {"text": "update project plan.md checkboxes"},
+    {"text": "update test plan.md checkboxes"},
     {"text": "run full test suite"},
     {"text": "yes, continue", "weight": 5},
-    {"text": "examine the code, and project and examine github for similar projects make suggestions for improvements update project plan.md with suggestions and new phases"}
+    {"text": "examine the code, and project; make suggestions for improvements update project plan.md with suggestions and new phases with checkboxes"}
   ],
   "waiting_time": 0.25,
   "cycling": "round_robin",

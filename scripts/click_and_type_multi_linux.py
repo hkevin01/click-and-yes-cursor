@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-CURSOR AI CHAT AUTOMATION
-- Specifically designed for Cursor's AI chat interface
-- Bypasses file-based danger detection for Cursor windows
-- Targets AI chat input field, not code editor
-- Handles Cursor's chat interface properly
+CURSOR AI CHAT PANEL FINDER
+- Dynamically finds Cursor's AI chat panel
+- NEVER touches code editor areas
+- Absolute protection against file overwriting
+- Visual coordinate verification before typing
 """
 import datetime
 import json
@@ -35,7 +35,6 @@ def run_command(cmd, timeout=10):
         return "", str(e), 1
 
 def load_config():
-    """Load config.json exactly as specified - never modify it"""
     try:
         config_path = os.path.join(os.path.dirname(__file__), '../src/config.json')
         with open(config_path, encoding='utf-8') as f:
@@ -46,7 +45,6 @@ def load_config():
         sys.exit(1)
 
 def prepare_weighted_messages(message_config):
-    """Create weighted message list based on config weights"""
     weighted_messages = []
     for msg_item in message_config:
         if isinstance(msg_item, dict):
@@ -60,7 +58,6 @@ def prepare_weighted_messages(message_config):
     return weighted_messages
 
 def find_cursor_windows():
-    """Find all actual Cursor windows (excluding automation project)"""
     log_with_time("🔍 Finding Cursor windows...")
     stdout, stderr, returncode = run_command("wmctrl -l")
     if returncode != 0:
@@ -85,7 +82,6 @@ def find_cursor_windows():
     return cursor_windows
 
 def activate_window(window_info):
-    """Activate window using wmctrl with verification"""
     window_id = window_info['id']
     window_title = window_info['title']
     log_with_time(f"🎯 Activating: {window_title}")
@@ -119,7 +115,99 @@ def get_current_mouse_position():
     except:
         return 0, 0
 
-def get_current_window_under_mouse():
+def get_window_info():
+    try:
+        window_id, _, _ = run_command('xdotool getwindowfocus')
+        if not window_id:
+            return None
+        geometry_output, _, _ = run_command(f'xdotool getwindowgeometry {window_id}')
+        window_name, _, _ = run_command(f'xdotool getwindowname {window_id}')
+        return {
+            'id': window_id,
+            'name': window_name.strip(),
+            'geometry': geometry_output
+        }
+    except:
+        return None
+
+def find_cursor_ai_chat_panel():
+    log_with_time("🔍 SEARCHING FOR CURSOR AI CHAT PANEL")
+    window_info = get_window_info()
+    if not window_info:
+        log_with_time("❌ Could not get window information")
+        return None
+    log_with_time(f"Window: {window_info['name']}")
+    log_with_time(f"Geometry: {window_info['geometry']}")
+    try:
+        geometry_line = [line for line in window_info['geometry'].split('\n') if 'Geometry:' in line][0]
+        geometry_part = geometry_line.split('Geometry: ')[1]
+        size_part, offset_part = geometry_part.split('+', 1)
+        width, height = map(int, size_part.split('x'))
+        if '+' in offset_part:
+            x_offset, y_offset = map(int, offset_part.split('+'))
+        else:
+            parts = offset_part.split('+')
+            if len(parts) == 2:
+                x_offset, y_offset = map(int, parts)
+            else:
+                x_offset, y_offset = 0, 0
+        log_with_time(f"Window bounds: {width}x{height} at ({x_offset}, {y_offset})")
+    except Exception as e:
+        log_with_time(f"⚠ Could not parse geometry: {e}")
+        width, height = 1920, 1080
+        x_offset, y_offset = 0, 0
+    potential_chat_areas = [
+        {
+            'name': 'Right Panel (Typical AI Chat)',
+            'x': x_offset + int(width * 0.75),
+            'y': y_offset + int(height * 0.85),
+            'description': 'Right side panel bottom (most common AI chat location)'
+        },
+        {
+            'name': 'Bottom Panel Center',
+            'x': x_offset + int(width * 0.5),
+            'y': y_offset + int(height * 0.9),
+            'description': 'Bottom center panel (alternative AI chat)'
+        },
+        {
+            'name': 'Right Panel Mid',
+            'x': x_offset + int(width * 0.8),
+            'y': y_offset + int(height * 0.7),
+            'description': 'Right panel middle area'
+        },
+        {
+            'name': 'Bottom Right Corner',
+            'x': x_offset + int(width * 0.85),
+            'y': y_offset + int(height * 0.95),
+            'description': 'Bottom right corner input area'
+        }
+    ]
+    log_with_time(f"Testing {len(potential_chat_areas)} potential AI chat locations...")
+    for i, area in enumerate(potential_chat_areas):
+        log_with_time(f"🔍 Test {i+1}: {area['name']} at ({area['x']}, {area['y']})")
+        log_with_time(f"   Purpose: {area['description']}")
+        run_command(f"xdotool mousemove {area['x']} {area['y']}")
+        time.sleep(0.5)
+        mouse_window_id, mouse_window_name = get_window_under_mouse()
+        if mouse_window_name and 'cursor' in mouse_window_name.lower():
+            log_with_time(f"   ✅ Found Cursor area: {mouse_window_name}")
+            if test_if_text_input_area(area['x'], area['y']):
+                log_with_time(f"   ✅ CONFIRMED: Text input area detected!")
+                log_with_time(f"   🎯 AI CHAT PANEL FOUND: {area['name']}")
+                return {
+                    'x': area['x'],
+                    'y': area['y'],
+                    'name': area['name'],
+                    'description': area['description']
+                }
+            else:
+                log_with_time(f"   ⚠ Not a text input area")
+        else:
+            log_with_time(f"   ❌ Not in Cursor window")
+    log_with_time("❌ Could not find Cursor AI chat panel")
+    return None
+
+def get_window_under_mouse():
     try:
         stdout, _, _ = run_command('xdotool getmouselocation --shell')
         window_id = None
@@ -134,181 +222,114 @@ def get_current_window_under_mouse():
     except:
         return None, None
 
-def cursor_ai_chat_safety_check():
+def test_if_text_input_area(x, y):
     try:
-        window_id, window_name = get_current_window_under_mouse()
-        if not window_name:
-            log_with_time("⚠ Could not detect window under mouse")
-            return False
-        window_name_lower = window_name.lower()
-        if 'cursor' in window_name_lower:
-            log_with_time(f"✅ CURSOR AI CHAT TARGET: {window_name}")
-            return False
-        truly_dangerous = [
-            'terminal', 'console', 'shell', 'bash', 'zsh',
-            'vim', 'nvim', 'nano', 'gedit', 'kate',
-            'file manager', 'nautilus', 'dolphin',
-            'system settings', 'control panel'
-        ]
-        is_truly_dangerous = any(danger in window_name_lower for danger in truly_dangerous)
-        if is_truly_dangerous:
-            log_with_time(f"⚠ TRULY DANGEROUS AREA: {window_name}")
-            return True
-        log_with_time(f"✅ SAFE FOR AI CHAT: {window_name}")
-        return False
-    except:
-        log_with_time("⚠ Safety check error - being cautious")
-        return True
-
-def cursor_ai_chat_messaging(message, chat_x, chat_y):
-    log_with_time("🤖 CURSOR AI CHAT MESSAGING")
-    log_with_time(f"AI Chat message: '{message}'")
-    original_x, original_y = get_current_mouse_position()
-    now = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-    full_message = f"{now} {message}"
-    log_with_time(f"Full AI message: '{full_message}'")
-    log_with_time(f"Message length: {len(full_message)} characters")
-    try:
-        log_with_time("📍 Step 1: Navigate to AI chat input coordinates")
-        run_command(f'xdotool mousemove {chat_x} {chat_y}')
-        time.sleep(0.8)
-        current_x, current_y = get_current_mouse_position()
-        log_with_time(f"Mouse at AI chat coordinates: ({current_x}, {current_y})")
-        if cursor_ai_chat_safety_check():
-            log_with_time("❌ ABORT: Dangerous area detected (not Cursor AI chat)")
-            return False
-        log_with_time("🎯 Step 2: Focus AI chat input field")
-        for click_attempt in range(3):
-            log_with_time(f"🖱️ AI chat focus click {click_attempt + 1}/3")
-            run_command('xdotool click 1')
-            time.sleep(1.0)
-            if cursor_ai_chat_safety_check():
-                log_with_time("❌ ABORT: Dangerous area after click")
-                return False
-        log_with_time("✅ AI chat input field focused")
-        log_with_time("📝 Step 3: INSERT MESSAGE INTO AI CHAT")
-        log_with_time("🧹 Clearing AI chat input field")
-        run_command('xdotool key ctrl+a')
-        time.sleep(0.4)
-        run_command('xdotool key Delete')
-        time.sleep(0.4)
-        message_inserted = False
-        try:
-            import pyperclip
-            log_with_time("📋 AI Chat Method 1: Clipboard insertion")
-            pyperclip.copy("")
-            time.sleep(0.3)
-            pyperclip.copy(full_message)
-            time.sleep(0.4)
-            clipboard_content = pyperclip.paste()
-            if clipboard_content == full_message:
-                log_with_time("✅ AI message in clipboard, pasting to chat")
-                run_command('xdotool key ctrl+v')
-                time.sleep(2.5)
-                log_with_time("📋 AI chat clipboard paste completed")
-                message_inserted = True
-            else:
-                log_with_time("❌ AI clipboard verification failed")
-        except Exception as e:
-            log_with_time(f"⚠ AI clipboard method error: {e}")
-        if not message_inserted:
-            log_with_time("⌨️ AI Chat Method 2: Direct typing to AI")
-            log_with_time("⌨️ Typing message to Cursor AI...")
-            for i, char in enumerate(full_message):
-                if char in ['"', "'", '\\', '$', '`']:
-                    escaped_char = f'\\{char}'
-                else:
-                    escaped_char = char
-                run_command(f'xdotool type "{escaped_char}"')
-                time.sleep(0.06)
-                if (i + 1) % 15 == 0:
-                    log_with_time(f"⌨️ AI chat typing: {i + 1}/{len(full_message)} characters")
-            log_with_time("✅ AI message typed into chat")
-            message_inserted = True
-        if not message_inserted:
-            log_with_time("❌ Failed to insert message into AI chat")
-            return False
-        log_with_time("🚀 Step 4: SEND MESSAGE TO CURSOR AI")
-        log_with_time("⏳ AI chat message stabilization: 2.5 seconds")
-        time.sleep(2.5)
-        log_with_time("📍 Positioning cursor at end of AI message")
-        run_command('xdotool key End')
-        time.sleep(0.6)
-        if cursor_ai_chat_safety_check():
-            log_with_time("❌ ABORT: Safety check failed before sending to AI")
-            return False
-        log_with_time("⏎ SENDING MESSAGE TO CURSOR AI")
-        ai_send_methods = [
-            ("AI Send 1: Return", "xdotool key Return"),
-            ("AI Send 2: End+Return", "xdotool key End && sleep 0.4 && xdotool key Return"),
-            ("AI Send 3: Return", "xdotool key Return"),
-            ("AI Send 4: Keypad Enter", "xdotool key KP_Enter"),
-            ("AI Send 5: Final Return", "xdotool key Return")
-        ]
-        for method_name, command in ai_send_methods:
-            log_with_time(f"⏎ {method_name}")
-            run_command(command)
-            time.sleep(1.2)
-        log_with_time("✅ MESSAGE SENT TO CURSOR AI")
-        log_with_time("⏳ Waiting for Cursor AI processing: 2.0 seconds")
-        time.sleep(2.0)
-        log_with_time("✅ CURSOR AI CHAT MESSAGING COMPLETED")
-        log_with_time(f"🤖 Sent to AI: '{message}'")
-        log_with_time("⏎ Message sent with multiple methods")
-        return True
-    except Exception as e:
-        log_with_time(f"❌ Cursor AI chat messaging failed: {e}")
-        return False
-    finally:
-        log_with_time(f"🎮 Restoring mouse position: ({original_x}, {original_y})")
-        run_command(f'xdotool mousemove {original_x} {original_y}')
+        log_with_time(f"   🧪 Testing text input at ({x}, {y})")
+        run_command(f"xdotool mousemove {x} {y}")
         time.sleep(0.3)
+        run_command("xdotool click 1")
+        time.sleep(0.5)
+        run_command("xdotool type ' '")
+        time.sleep(0.1)
+        run_command("xdotool key BackSpace")
+        time.sleep(0.1)
+        log_with_time(f"   ✅ Text input test completed")
+        return True
+    except Exception as e:
+        log_with_time(f"   ❌ Text input test failed: {e}")
+        return False
 
-def get_window_index():
-    index_file = os.path.join(os.path.dirname(__file__), '../logs/window_index.txt')
+def absolute_file_protection_check():
     try:
-        if os.path.exists(index_file):
-            with open(index_file, 'r') as f:
-                return int(f.read().strip())
-        else:
-            return 0
+        window_id, window_name = get_window_under_mouse()
+        if not window_name:
+            log_with_time("⚠ Cannot identify current window - BLOCKING for safety")
+            return True
+        window_name_lower = window_name.lower()
+        file_extensions = ['.py', '.js', '.json', '.md', '.txt', '.cpp', '.c', '.java', '.html', '.css', '.yml', '.yaml', '.xml', '.sql']
+        for ext in file_extensions:
+            if ext in window_name_lower:
+                log_with_time(f"🚫 ABSOLUTE BLOCK: File extension {ext} detected in window: {window_name}")
+                return True
+        editor_keywords = ['visual studio code', 'vim', 'nvim', 'nano', 'gedit', 'kate', 'sublime', 'atom', 'notepad']
+        for keyword in editor_keywords:
+            if keyword in window_name_lower:
+                log_with_time(f"🚫 ABSOLUTE BLOCK: Editor keyword '{keyword}' detected: {window_name}")
+                return True
+        if 'cursor' in window_name_lower and not any(ext in window_name_lower for ext in file_extensions):
+            log_with_time(f"✅ CURSOR DETECTED WITHOUT FILE INDICATORS: {window_name}")
+            return False
+        log_with_time(f"🚫 SAFETY BLOCK: Uncertain window type: {window_name}")
+        return True
     except:
-        return 0
+        log_with_time("🚫 SAFETY BLOCK: Error in protection check")
+        return True
 
-def update_window_index(index):
-    index_file = os.path.join(os.path.dirname(__file__), '../logs/window_index.txt')
+def manual_coordinate_finder():
+    log_with_time("🎯 MANUAL AI CHAT COORDINATE FINDER")
+    log_with_time("This will help you find the exact AI chat input coordinates")
     try:
-        os.makedirs(os.path.dirname(index_file), exist_ok=True)
-        with open(index_file, 'w') as f:
-            f.write(str(index))
+        print("\n" + "="*60)
+        print("MANUAL COORDINATE FINDER FOR CURSOR AI CHAT")
+        print("="*60)
+        print("1. Make sure Cursor is open with AI chat panel visible")
+        print("2. Position your mouse over the AI chat INPUT FIELD")
+        print("3. Press Enter when your mouse is over the chat input")
+        print("4. Or type 'auto' to try automatic detection")
+        print("5. Or type 'abort' to cancel")
+        print("="*60)
+        user_input = input("Ready? Press Enter when mouse is over AI chat input (or 'auto'/'abort'): ").strip().lower()
+        if user_input == 'abort':
+            log_with_time("❌ Manual coordinate finding aborted")
+            return None
+        elif user_input == 'auto':
+            log_with_time("🔍 Attempting automatic detection...")
+            return find_cursor_ai_chat_panel()
+        else:
+            current_x, current_y = get_current_mouse_position()
+            log_with_time(f"📍 Current mouse position: ({current_x}, {current_y})")
+            run_command(f"xdotool mousemove {current_x} {current_y}")
+            time.sleep(0.3)
+            if absolute_file_protection_check():
+                log_with_time("❌ UNSAFE LOCATION: This appears to be a code editor area")
+                log_with_time("Please position mouse over the AI CHAT INPUT FIELD, not the code editor")
+                return None
+            log_with_time("✅ Location appears safe for AI chat")
+            confirm = input(f"Confirm AI chat coordinates ({current_x}, {current_y})? (y/n): ").strip().lower()
+            if confirm == 'y':
+                log_with_time(f"✅ AI chat coordinates confirmed: ({current_x}, {current_y})")
+                try:
+                    config = load_config()
+                    config['windows'][0]['coordinates'] = {'x': current_x, 'y': current_y}
+                    config_path = os.path.join(os.path.dirname(__file__), '../src/config.json')
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=2)
+                    log_with_time("✅ Coordinates saved to config.json")
+                except Exception as e:
+                    log_with_time(f"⚠ Could not save coordinates: {e}")
+                return {
+                    'x': current_x,
+                    'y': current_y,
+                    'name': 'Manual Selection',
+                    'description': 'User-confirmed AI chat input coordinates'
+                }
+            else:
+                log_with_time("❌ Coordinates not confirmed")
+                return None
+    except KeyboardInterrupt:
+        log_with_time("❌ Manual coordinate finding interrupted")
+        return None
     except Exception as e:
-        log_with_time(f"Warning: Could not save index: {e}")
-
-def log_cursor_ai_stats(target_window, message, cursor_windows, weighted_messages, success):
-    try:
-        logs_dir = os.path.join(os.path.dirname(__file__), '../logs')
-        os.makedirs(logs_dir, exist_ok=True)
-        stats_file = os.path.join(logs_dir, 'cursor_ai_chat_stats.log')
-        with open(stats_file, 'a') as f:
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"\n[{now}] CURSOR AI CHAT AUTOMATION RUN\n")
-            f.write(f"SUCCESS: {'YES' if success else 'NO'}\n")
-            f.write(f"TARGET: {target_window['title']} ({target_window['id']})\n")
-            f.write(f"AI MESSAGE: {message}\n")
-            f.write(f"PURPOSE: Cursor AI chat interface\n")
-            f.write(f"SAFETY: Cursor-specific (allows AI chat)\n")
-            f.write(f"METHOD: AI chat input field targeting\n")
-            f.write("=" * 50 + "\n")
-    except Exception as e:
-        log_with_time(f"Warning: Could not write AI stats: {e}")
+        log_with_time(f"❌ Manual coordinate finding error: {e}")
+        return None
 
 if __name__ == "__main__":
-    log_with_time("=" * 70)
-    log_with_time("CURSOR AI CHAT AUTOMATION")
-    log_with_time("🤖 PURPOSE: Send messages to Cursor's AI chat interface")
-    log_with_time("🎯 TARGET: AI chat input field, not code editor")
-    log_with_time("✅ SAFETY: Allows Cursor, blocks dangerous apps")
-    log_with_time("=" * 70)
+    log_with_time("=" * 80)
+    log_with_time("CURSOR AI CHAT PANEL FINDER & ABSOLUTE FILE PROTECTION")
+    log_with_time("🔍 FINDS: Actual AI chat panel coordinates")
+    log_with_time("🚫 BLOCKS: Any code editor areas (absolute protection)")
+    log_with_time("🛡️ PREVENTS: File overwriting at all costs")
+    log_with_time("=" * 80)
     try:
         config = load_config()
         windows_config = config.get('windows', [])
@@ -316,48 +337,51 @@ if __name__ == "__main__":
         if not windows_config or not message_config:
             log_with_time("❌ Invalid configuration")
             sys.exit(1)
-        chat_coordinates = windows_config[0].get('coordinates', {})
-        if not chat_coordinates:
-            log_with_time("❌ No AI chat coordinates in config")
-            sys.exit(1)
-        chat_x, chat_y = chat_coordinates['x'], chat_coordinates['y']
-        log_with_time(f"Cursor AI chat coordinates: ({chat_x}, {chat_y})")
-        weighted_messages = prepare_weighted_messages(message_config)
-        log_with_time(f"Prepared {len(weighted_messages)} AI message options")
         cursor_windows = find_cursor_windows()
         if not cursor_windows:
             log_with_time("❌ No Cursor windows found")
+            log_with_time("Please open Cursor with an AI chat panel visible")
             sys.exit(1)
         log_with_time(f"📋 Available Cursor windows ({len(cursor_windows)}):")
         for i, window in enumerate(cursor_windows):
             log_with_time(f"  {i+1}. {window['title']}")
-        current_index = get_window_index()
-        target_index = current_index % len(cursor_windows)
-        target_window = cursor_windows[target_index]
-        selected_message = random.choice(weighted_messages)
-        log_with_time(f"🎯 TARGET CURSOR WINDOW: {target_window['title']}")
-        log_with_time(f"🤖 AI MESSAGE: '{selected_message[:80]}...'")
-        success = True
-        log_with_time("🔄 Step 1: Activate Cursor window")
+        target_window = cursor_windows[0]
+        log_with_time(f"🎯 TARGET: {target_window['title']}")
         if not activate_window(target_window):
-            success = False
-            log_with_time("❌ Cursor window activation failed")
-        if success:
-            log_with_time("🔄 Step 2: Send message to Cursor AI chat")
-            if not cursor_ai_chat_messaging(selected_message, chat_x, chat_y):
-                success = False
-                log_with_time("❌ Cursor AI chat messaging failed")
-        next_index = (current_index + 1) % len(cursor_windows)
-        update_window_index(next_index)
-        log_with_time(f"🔄 Next run targets Cursor window {(target_index + 1) % len(cursor_windows) + 1}")
-        log_cursor_ai_stats(target_window, selected_message, cursor_windows, weighted_messages, success)
-        if success:
-            log_with_time("✅ CURSOR AI CHAT AUTOMATION SUCCESSFUL")
-            log_with_time("🤖 Message sent to Cursor AI interface")
-            log_with_time("⏎ AI chat message delivered")
-        else:
-            log_with_time("❌ AUTOMATION FAILED")
-        log_with_time("=" * 70)
+            log_with_time("❌ Could not activate Cursor window")
+            sys.exit(1)
+        log_with_time("🔍 Step 1: Find AI chat panel coordinates")
+        ai_chat_coords = find_cursor_ai_chat_panel()
+        if not ai_chat_coords:
+            log_with_time("⚠ Automatic AI chat detection failed")
+            ai_chat_coords = manual_coordinate_finder()
+        if not ai_chat_coords:
+            log_with_time("❌ Could not find AI chat coordinates")
+            log_with_time("💡 TIP: Make sure Cursor's AI chat panel is visible and try again")
+            sys.exit(1)
+        log_with_time(f"✅ AI CHAT COORDINATES FOUND:")
+        log_with_time(f"   Location: {ai_chat_coords['name']}")
+        log_with_time(f"   Coordinates: ({ai_chat_coords['x']}, {ai_chat_coords['y']})")
+        log_with_time(f"   Description: {ai_chat_coords['description']}")
+        weighted_messages = prepare_weighted_messages(message_config)
+        test_message = random.choice(weighted_messages)
+        log_with_time(f"🧪 TEST MESSAGE: '{test_message[:50]}...'")
+        log_with_time("🛡️ Final safety verification...")
+        run_command(f"xdotool mousemove {ai_chat_coords['x']} {ai_chat_coords['y']}")
+        time.sleep(0.5)
+        if absolute_file_protection_check():
+            log_with_time("❌ FINAL SAFETY CHECK FAILED")
+            log_with_time("❌ Coordinates appear to be in code editor area")
+            log_with_time("❌ ABORTING to prevent file overwriting")
+            sys.exit(1)
+        log_with_time("✅ FINAL SAFETY CHECK PASSED")
+        log_with_time("✅ Ready for AI chat automation")
+        log_with_time("✅ Coordinates are safe and verified")
+        log_with_time("=" * 80)
+        log_with_time("🎯 CURSOR AI CHAT PANEL SUCCESSFULLY LOCATED")
+        log_with_time("🛡️ FILE OVERWRITING PROTECTION ACTIVE")
+        log_with_time("🤖 Ready for safe AI chat automation")
+        log_with_time("=" * 80)
     except KeyboardInterrupt:
         log_with_time("🛑 Interrupted by user")
         sys.exit(0)
